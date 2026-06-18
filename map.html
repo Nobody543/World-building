@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Map – World Builder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .map-container { position:relative; }
+    #mapSvg { background:#071A14; cursor:crosshair; }
+    .map-toolbar { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:center; }
+    .mode-btn { background:var(--raised); border:1px solid var(--border); border-radius:var(--r);
+      padding:0.35rem 0.8rem; font-family:var(--ff-ui); font-size:0.72rem; color:var(--text-dim);
+      cursor:pointer; transition:all var(--t); }
+    .mode-btn.active { color:var(--parch); border-color:var(--parch-dim); background:var(--parch-glow); }
+    .mode-label { font-family:var(--ff-ui); font-size:0.65rem; color:var(--text-faint); font-style:italic; }
+    /* Location list sidebar */
+    .loc-list { display:flex; flex-direction:column; gap:0.5rem; margin-top:1.5rem; }
+    .loc-item { display:flex; align-items:center; gap:0.65rem; padding:0.6rem 0.75rem;
+      background:var(--raised); border:1px solid var(--border); border-radius:var(--r);
+      cursor:pointer; transition:border-color var(--t); }
+    .loc-item:hover { border-color:var(--border-hi); }
+    .loc-pin { width:14px; height:14px; border-radius:50%; flex-shrink:0; border:2px solid rgba(255,255,255,0.2); }
+    .loc-name { font-family:var(--ff-sc); font-size:0.85rem; color:var(--parch); flex:1; }
+    .loc-type { font-size:0.72rem; color:var(--text-faint); }
+    /* two-col layout for map page */
+    .map-layout { display:grid; grid-template-columns:1fr 280px; gap:1.5rem; }
+    @media(max-width:900px){ .map-layout { grid-template-columns:1fr; } }
+    .map-sidebar-panel { display:flex; flex-direction:column; gap:0.75rem; }
+    /* popup */
+    .map-popup { position:absolute; pointer-events:none; z-index:10;
+      background:var(--surface); border:1px solid var(--border-hi); border-radius:var(--r);
+      padding:0.6rem 0.9rem; min-width:140px; box-shadow:0 4px 20px rgba(0,0,0,0.5); }
+    .map-popup-name { font-family:var(--ff-sc); font-size:0.85rem; color:var(--parch); }
+    .map-popup-sub { font-size:0.72rem; color:var(--text-dim); font-style:italic; }
+    .grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-top:1.5rem; }
+  </style>
+</head>
+<body>
+<div class="main">
+<div class="page-wrap">
+  <div class="page-header">
+    <span class="page-eyebrow">World</span>
+    <h1 class="page-title">Map</h1>
+    <p class="page-desc">Place and explore locations across your world.</p>
+  </div>
+
+  <div class="map-layout">
+    <!-- MAP -->
+    <div>
+      <div class="map-toolbar">
+        <button class="mode-btn active" id="modeView" onclick="setMode('view')">👁 View</button>
+        <button class="mode-btn" id="modeAdd" onclick="setMode('add')">⊕ Add Location</button>
+        <button class="mode-btn" id="modeMove" onclick="setMode('move')">✥ Move Pin</button>
+        <span class="mode-label" id="modeHint">Click a pin to view details.</span>
+      </div>
+      <div class="map-container">
+        <svg id="mapSvg" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background terrain -->
+          <defs>
+            <radialGradient id="oceanGrad" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stop-color="#0A2818"/>
+              <stop offset="100%" stop-color="#071A14"/>
+            </radialGradient>
+            <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <rect width="1000" height="700" fill="url(#oceanGrad)"/>
+          <!-- Grid lines (subtle) -->
+          <g stroke="#1A3D29" stroke-width="0.5" opacity="0.4">
+            <line x1="200" y1="0" x2="200" y2="700"/><line x1="400" y1="0" x2="400" y2="700"/>
+            <line x1="600" y1="0" x2="600" y2="700"/><line x1="800" y1="0" x2="800" y2="700"/>
+            <line x1="0" y1="140" x2="1000" y2="140"/><line x1="0" y1="280" x2="1000" y2="280"/>
+            <line x1="0" y1="420" x2="1000" y2="420"/><line x1="0" y1="560" x2="1000" y2="560"/>
+          </g>
+          <!-- Continent outline (hand-drawn feel) -->
+          <path d="M 150,100 C 200,60 350,80 500,90 C 650,100 780,70 880,120 C 950,160 970,250 950,350 C 930,450 900,550 820,600 C 750,640 650,660 550,650 C 450,640 350,620 260,580 C 170,540 120,480 100,400 C 80,320 90,200 150,100 Z"
+            fill="#0F2820" stroke="#1E4A30" stroke-width="1.5" opacity="0.8"/>
+          <!-- Water bodies -->
+          <ellipse cx="450" cy="350" rx="80" ry="50" fill="#071A14" stroke="#1E4A30" stroke-width="1" opacity="0.6"/>
+          <path d="M 200,450 Q 250,500 300,480 Q 280,530 240,520 Z" fill="#071A14" stroke="#1E4A30" stroke-width="0.5" opacity="0.5"/>
+          <!-- Mountain symbols -->
+          <g fill="none" stroke="#2D6644" stroke-width="1.2" opacity="0.5">
+            <path d="M 720,100 L 740,70 L 760,100"/><path d="M 750,110 L 775,75 L 800,110"/>
+            <path d="M 780,95 L 800,65 L 820,95"/>
+          </g>
+          <!-- Forest dots -->
+          <g fill="#1E4A30" opacity="0.6">
+            <circle cx="600" cy="180" r="6"/><circle cx="620" cy="195" r="5"/><circle cx="590" cy="200" r="7"/>
+            <circle cx="640" cy="175" r="5"/><circle cx="610" cy="215" r="6"/><circle cx="655" cy="200" r="5"/>
+          </g>
+          <!-- Pins group (filled by JS) -->
+          <g id="pinGroup"></g>
+        </svg>
+        <div id="mapPopup" class="map-popup" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="map-sidebar-panel">
+      <div class="card">
+        <span class="card-label">Locations (click to focus)</span>
+        <div class="loc-list" id="locList"></div>
+        <button class="btn btn-parch btn-sm mt-md" onclick="setMode('add')">+ Add location</button>
+      </div>
+      <div class="card">
+        <span class="card-label">Legend</span>
+        <div style="display:flex;flex-direction:column;gap:0.4rem;margin-top:0.25rem" id="legendBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ADD LOCATION MODAL -->
+<div class="modal-backdrop" id="locModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="locModalTitle">Add Location</span>
+      <button class="modal-close" onclick="closeModal('locModal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="lName" placeholder="e.g. The Ashfields">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="lType">
+          <option>Region</option><option>City</option><option>Forest</option>
+          <option>Mountain</option><option>Ruin</option><option>Sea</option>
+          <option>Desert</option><option>Village</option><option>Fortress</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Controlling Faction</label>
+      <select id="lFaction"></select>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="lDesc" rows="3" placeholder="What is this place?"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Lore / Notes (one per line)</label>
+      <textarea id="lLore" rows="3" placeholder="Each line is a lore entry.&#10;Mysteries, history, local legends…"></textarea>
+    </div>
+    <input type="hidden" id="lEditId">
+    <input type="hidden" id="lX"><input type="hidden" id="lY">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('locModal')">Cancel</button>
+      <button class="btn btn-coral btn-sm" id="lDeleteBtn" onclick="deleteLoc()" style="display:none">Delete</button>
+      <button class="btn btn-parch" onclick="saveLoc()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/world.js"></script>
+<script>
+  renderSidebar('map');
+  onBackdrop('locModal');
+
+  let mode = 'view';
+  let pendingX = 50, pendingY = 50;
+  let movingId = null;
+
+  function setMode(m) {
+    mode = m; movingId = null;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('mode'+m.charAt(0).toUpperCase()+m.slice(1))?.classList.add('active');
+    const hints = {view:'Click a pin to view details.', add:'Click anywhere on the map to place a new location.', move:'Click a pin, then click where to move it.'};
+    document.getElementById('modeHint').textContent = hints[m]||'';
+    document.getElementById('mapSvg').style.cursor = m==='view' ? 'default' : 'crosshair';
+  }
+
+  function svgCoords(e) {
+    const svg = document.getElementById('mapSvg');
+    const rect = svg.getBoundingClientRect();
+    const vb = svg.viewBox.baseVal;
+    return {
+      x: ((e.clientX - rect.left) / rect.width * vb.width),
+      y: ((e.clientY - rect.top) / rect.height * vb.height)
+    };
+  }
+
+  document.getElementById('mapSvg').addEventListener('click', function(e) {
+    if (e.target.closest('.map-pin')) return;
+    const {x,y} = svgCoords(e);
+    if (mode==='add') {
+      pendingX = +(x/10).toFixed(1); pendingY = +(y/7).toFixed(1);
+      openAddLocModal(pendingX, pendingY);
+    }
+  });
+
+  function openAddLocModal(x, y) {
+    document.getElementById('locModalTitle').textContent = 'Add Location';
+    ['lName','lDesc','lLore'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('lType').value='Region';
+    document.getElementById('lEditId').value='';
+    document.getElementById('lDeleteBtn').style.display='none';
+    document.getElementById('lFaction').innerHTML = factionOptions('');
+    document.getElementById('lX').value = x; document.getElementById('lY').value = y;
+    openModal('locModal');
+  }
+
+  function openEditLocModal(id) {
+    const l = World.find('locations', id); if(!l) return;
+    document.getElementById('locModalTitle').textContent = 'Edit Location';
+    document.getElementById('lName').value = l.name;
+    document.getElementById('lType').value = l.type;
+    document.getElementById('lDesc').value = l.description||'';
+    document.getElementById('lLore').value = (l.lore||[]).join('\n');
+    document.getElementById('lEditId').value = id;
+    document.getElementById('lDeleteBtn').style.display='';
+    document.getElementById('lFaction').innerHTML = factionOptions(l.faction_id||'');
+    document.getElementById('lX').value = l.x; document.getElementById('lY').value = l.y;
+    openModal('locModal');
+  }
+
+  function saveLoc() {
+    const name = document.getElementById('lName').value.trim();
+    if (!name) { toast('Name required','error'); return; }
+    const loreRaw = document.getElementById('lLore').value;
+    const data = {
+      name, type: document.getElementById('lType').value,
+      description: document.getElementById('lDesc').value.trim(),
+      faction_id: document.getElementById('lFaction').value||null,
+      lore: loreRaw.split('\n').map(s=>s.trim()).filter(Boolean),
+      x: parseFloat(document.getElementById('lX').value)||50,
+      y: parseFloat(document.getElementById('lY').value)||50,
+    };
+    const editId = document.getElementById('lEditId').value;
+    if (editId) { World.update('locations', editId, data); toast('Location updated'); }
+    else { World.add('locations', data); toast('Location added'); }
+    closeModal('locModal'); renderPins(); renderLocList(); renderLegend(); setMode('view');
+  }
+
+  function deleteLoc() {
+    const id = document.getElementById('lEditId').value;
+    if (!confirm('Delete this location?')) return;
+    World.remove('locations', id);
+    closeModal('locModal'); renderPins(); renderLocList(); renderLegend(); toast('Location deleted');
+  }
+
+  function renderPins() {
+    const locs = World.get('locations');
+    const svg = document.getElementById('mapSvg');
+    const vb = svg.viewBox.baseVal;
+    const group = document.getElementById('pinGroup');
+    group.innerHTML = locs.map(l => {
+      const px = (l.x/100) * vb.width;
+      const py = (l.y/100) * vb.height;
+      const col = World.factionColor(l.faction_id);
+      const icons = {Region:'◈',Forest:'⬡',City:'◆',Mountain:'▲',Ruin:'⊕',Sea:'〜',Fortress:'⬟',Default:'●'};
+      const icon = icons[l.type]||icons.Default;
+      return `
+        <g class="map-pin" data-id="${l.id}" onclick="pinClick(event,'${l.id}')" transform="translate(${px},${py})">
+          <circle r="14" fill="${col}" opacity="0.2"/>
+          <circle r="8" fill="${col}" opacity="0.85" stroke="${col}" stroke-width="1"/>
+          <circle r="3" fill="var(--void)" opacity="0.8"/>
+          <text text-anchor="middle" dy="-16" fill="${col}" font-size="9" font-family="Inter,sans-serif" font-weight="600" opacity="0.9">${l.name}</text>
+        </g>`;
+    }).join('');
+  }
+
+  function pinClick(e, id) {
+    e.stopPropagation();
+    if (mode==='move') {
+      movingId = id; toast('Click new position for '+World.locationName(id));
+      document.getElementById('mapSvg').addEventListener('click', function moveHandler(ev) {
+        if (ev.target.closest('.map-pin')) return;
+        const {x,y} = svgCoords(ev);
+        World.update('locations', movingId, {x:+(x/10).toFixed(1), y:+(y/7).toFixed(1)});
+        renderPins(); setMode('view'); toast('Pin moved');
+        document.getElementById('mapSvg').removeEventListener('click', moveHandler);
+      }, {once:true});
+      return;
+    }
+    if (mode==='view') showPopup(e, id);
+    if (mode==='add') return;
+  }
+
+  function showPopup(e, id) {
+    const l = World.find('locations', id); if(!l) return;
+    const popup = document.getElementById('mapPopup');
+    popup.style.display='block';
+    popup.innerHTML = `
+      <div class="map-popup-name">${l.name}</div>
+      <div class="map-popup-sub">${l.type}${l.faction_id?` · ${World.factionName(l.faction_id)}`:''}</div>
+      <div style="font-size:0.75rem;color:var(--text);margin-top:0.35rem;line-height:1.4">${(l.description||'').substring(0,80)}${(l.description||'').length>80?'…':''}</div>
+      <div style="margin-top:0.5rem;display:flex;gap:0.35rem">
+        <button class="btn btn-ghost btn-sm" style="font-size:0.65rem" onclick="openEditLocModal('${id}')">✎ Edit</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:0.65rem" onclick="document.getElementById('mapPopup').style.display='none'">✕</button>
+      </div>`;
+    const rect = document.getElementById('mapSvg').getBoundingClientRect();
+    const container = document.querySelector('.map-container').getBoundingClientRect();
+    popup.style.left = (e.clientX - container.left + 12)+'px';
+    popup.style.top = (e.clientY - container.top - 20)+'px';
+    popup.style.pointerEvents='all';
+  }
+
+  function renderLocList() {
+    const locs = World.get('locations');
+    document.getElementById('locList').innerHTML = locs.length
+      ? locs.map(l=>`
+        <div class="loc-item" onclick="focusPin('${l.id}')">
+          <div class="loc-pin" style="background:${World.factionColor(l.faction_id)}"></div>
+          <span class="loc-name">${l.name}</span>
+          <span class="loc-type">${l.type}</span>
+        </div>`).join('')
+      : '<p class="text-faint text-sm italic">No locations yet.</p>';
+  }
+
+  function renderLegend() {
+    const facs = World.get('factions');
+    document.getElementById('legendBox').innerHTML =
+      facs.map(f=>`<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text-dim)">
+        <span style="width:10px;height:10px;border-radius:50%;background:${f.color};flex-shrink:0"></span>${f.name}</div>`).join('') +
+      `<div style="display:flex;align-items:center;gap:0.5rem;font-size:0.75rem;color:var(--text-faint)">
+        <span style="width:10px;height:10px;border-radius:50%;background:var(--text-faint);flex-shrink:0"></span>Uncontrolled</div>`;
+  }
+
+  function focusPin(id) {
+    const l = World.find('locations', id); if(!l) return;
+    // Scroll map into view and show popup approximately
+    document.getElementById('mapSvg').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+
+  renderPins(); renderLocList(); renderLegend();
+</script>
+</body>
+</html>
