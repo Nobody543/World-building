@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Factions – World Builder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .faction-card { position:relative; overflow:hidden; cursor:pointer; }
+    .faction-card .stripe { position:absolute; top:0;left:0;right:0;height:3px; }
+    .faction-card .fc-name { font-family:var(--ff-sc); font-size:1.05rem; color:var(--parch); margin-top:0.6rem; }
+    .faction-card .fc-type { font-size:0.78rem; font-style:italic; color:var(--text-dim); margin-top:0.1rem; }
+    .faction-card .fc-desc { font-size:0.85rem; color:var(--text); margin-top:0.65rem; line-height:1.55;
+      display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .faction-card .fc-footer { margin-top:0.9rem; display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center; }
+    .rel-row { display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.4rem; }
+    /* detail panel faction */
+    .dp-stripe { height:4px; border-radius:2px; margin-bottom:1.25rem; }
+    .dp-name { font-family:var(--ff-sc); font-size:1.3rem; color:var(--parch); letter-spacing:0.04em; }
+    .dp-type { font-size:0.85rem; color:var(--text-dim); font-style:italic; margin-top:0.15rem; }
+    .dp-section { margin-top:1.25rem; }
+    .dp-section-label { font-family:var(--ff-ui); font-size:0.62rem; font-weight:600;
+      letter-spacing:0.12em; text-transform:uppercase; color:var(--text-faint); margin-bottom:0.4rem; display:block; }
+    .dp-body { font-size:0.88rem; color:var(--text); line-height:1.6; }
+    .member-item { display:flex; align-items:center; gap:0.6rem; padding:0.4rem 0;
+      border-bottom:1px solid var(--border); font-size:0.85rem; }
+    .member-item:last-child { border-bottom:none; }
+  </style>
+</head>
+<body>
+<div class="main">
+<div class="page-wrap">
+  <div class="page-header">
+    <span class="page-eyebrow">World</span>
+    <h1 class="page-title">Factions</h1>
+    <p class="page-desc">The powers, covenants, and guilds that shape the world's politics.</p>
+    <div class="page-actions">
+      <button class="btn btn-parch" onclick="openAddModal()">+ New Faction</button>
+    </div>
+  </div>
+
+  <div class="entity-grid" id="factionGrid"></div>
+</div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <div></div>
+    <button class="btn btn-ghost btn-icon" onclick="closeDetail()">✕</button>
+  </div>
+  <div id="detailContent"></div>
+</div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-backdrop" id="factionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Faction</span>
+      <button class="modal-close" onclick="closeModal('factionModal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Faction Name</label>
+        <input type="text" id="fName" placeholder="e.g. The Iron Compact">
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="fType">
+          <option>Empire</option><option>Kingdom</option><option>Covenant</option>
+          <option>Mercantile</option><option>Cult</option><option>Alliance</option>
+          <option>Clan</option><option>Order</option><option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Colour</label>
+        <input type="color" id="fColor" value="#5BA89A">
+      </div>
+      <div class="form-group">
+        <label>Ruler / Leader</label>
+        <select id="fRuler"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="fDesc" rows="3" placeholder="What is this faction? Who are they?"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Allies (hold Ctrl to multi-select)</label>
+      <select id="fAllies" multiple style="min-height:80px"></select>
+    </div>
+    <div class="form-group">
+      <label>Enemies</label>
+      <select id="fEnemies" multiple style="min-height:80px"></select>
+    </div>
+    <input type="hidden" id="fEditId">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('factionModal')">Cancel</button>
+      <button class="btn btn-coral btn-sm" id="fDeleteBtn" onclick="deleteCurrentFaction()" style="display:none">Delete</button>
+      <button class="btn btn-parch" onclick="saveFaction()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/world.js"></script>
+<script>
+  renderSidebar('factions');
+  onBackdrop('factionModal');
+  let currentDetailId = null;
+
+  function render() {
+    const facs = World.get('factions');
+    const grid = document.getElementById('factionGrid');
+    if (!facs.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">⚑</div>
+        <div class="empty-label">No factions yet</div>
+        <div class="empty-hint">Add the first power in your world.</div>
+      </div>`;
+      return;
+    }
+    grid.innerHTML = facs.map(f => {
+      const members = World.get('characters').filter(c=>c.faction_id===f.id);
+      const ruler = World.find('characters', f.ruler_id);
+      return `
+      <div class="entity-card faction-card" onclick="openDetail('${f.id}')">
+        <div class="stripe" style="background:${f.color}"></div>
+        <div class="fc-name">${f.name}</div>
+        <div class="fc-type">${f.type}</div>
+        <div class="fc-desc">${f.description||'No description.'}</div>
+        <div class="fc-footer">
+          ${ruler ? `<span class="tag tag-parch">Led by ${ruler.name}</span>` : ''}
+          <span class="tag tag-dim">${members.length} member${members.length!==1?'s':''}</span>
+          ${f.enemies.length ? `<span class="tag tag-coral">Enemies: ${f.enemies.length}</span>` : ''}
+          ${f.allies.length ? `<span class="tag tag-teal">Allies: ${f.allies.length}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openDetail(id) {
+    currentDetailId = id;
+    const f = World.find('factions', id);
+    if (!f) return;
+    const members = World.get('characters').filter(c=>c.faction_id===id);
+    const ruler = World.find('characters', f.ruler_id);
+    const allies = (f.allies||[]).map(aid=>World.factionName(aid));
+    const enemies = (f.enemies||[]).map(eid=>World.factionName(eid));
+
+    document.getElementById('detailContent').innerHTML = `
+      <div class="dp-stripe" style="background:${f.color}"></div>
+      <div class="dp-name">${f.name}</div>
+      <div class="dp-type">${f.type}</div>
+      ${ruler ? `<div class="dp-section"><span class="dp-section-label">Ruler</span><div class="dp-body">${ruler.name} — ${ruler.role}</div></div>` : ''}
+      <div class="dp-section"><span class="dp-section-label">Description</span><div class="dp-body">${f.description||'No description.'}</div></div>
+      ${allies.length ? `<div class="dp-section"><span class="dp-section-label">Allies</span><div class="rel-row">${allies.map(a=>`<span class="tag tag-teal">${a}</span>`).join('')}</div></div>` : ''}
+      ${enemies.length ? `<div class="dp-section"><span class="dp-section-label">Enemies</span><div class="rel-row">${enemies.map(e=>`<span class="tag tag-coral">${e}</span>`).join('')}</div></div>` : ''}
+      <div class="dp-section">
+        <span class="dp-section-label">Members (${members.length})</span>
+        ${members.length ? members.map(c=>`
+          <div class="member-item">
+            <span style="width:7px;height:7px;border-radius:50%;background:${f.color};display:inline-block"></span>
+            <span>${c.name}</span>
+            <span class="text-faint text-xs" style="margin-left:auto">${c.role}</span>
+          </div>`).join('') : '<p class="text-faint text-sm italic">No members.</p>'}
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal('${id}')">✎ Edit faction</button>
+    `;
+    document.getElementById('detailPanel').classList.add('open');
+  }
+
+  function closeDetail() {
+    document.getElementById('detailPanel').classList.remove('open');
+  }
+
+  function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'New Faction';
+    document.getElementById('fName').value = '';
+    document.getElementById('fType').value = 'Empire';
+    document.getElementById('fColor').value = '#5BA89A';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fEditId').value = '';
+    document.getElementById('fDeleteBtn').style.display = 'none';
+    populateFactionSelects('', [], []);
+    openModal('factionModal');
+  }
+
+  function openEditModal(id) {
+    const f = World.find('factions', id);
+    if (!f) return;
+    document.getElementById('modalTitle').textContent = 'Edit Faction';
+    document.getElementById('fName').value = f.name;
+    document.getElementById('fType').value = f.type;
+    document.getElementById('fColor').value = f.color;
+    document.getElementById('fDesc').value = f.description||'';
+    document.getElementById('fEditId').value = id;
+    document.getElementById('fDeleteBtn').style.display = '';
+    populateFactionSelects(f.ruler_id||'', f.allies||[], f.enemies||[]);
+    openModal('factionModal');
+  }
+
+  function populateFactionSelects(rulerId, allies, enemies) {
+    document.getElementById('fRuler').innerHTML = characterOptions(rulerId);
+    const otherFacs = World.get('factions').filter(f=>f.id !== document.getElementById('fEditId').value);
+    const makeOpts = (selected) => otherFacs.map(f=>
+      `<option value="${f.id}" ${selected.includes(f.id)?'selected':''}>${f.name}</option>`).join('');
+    document.getElementById('fAllies').innerHTML = makeOpts(allies);
+    document.getElementById('fEnemies').innerHTML = makeOpts(enemies);
+  }
+
+  function saveFaction() {
+    const name = document.getElementById('fName').value.trim();
+    if (!name) { toast('Name is required','error'); return; }
+    const data = {
+      name, type: document.getElementById('fType').value,
+      color: document.getElementById('fColor').value,
+      description: document.getElementById('fDesc').value.trim(),
+      ruler_id: document.getElementById('fRuler').value || null,
+      allies: [...document.getElementById('fAllies').selectedOptions].map(o=>o.value),
+      enemies: [...document.getElementById('fEnemies').selectedOptions].map(o=>o.value),
+      territories: [],
+    };
+    const editId = document.getElementById('fEditId').value;
+    if (editId) { World.update('factions', editId, data); toast('Faction updated'); }
+    else { World.add('factions', data); toast('Faction added'); }
+    closeModal('factionModal');
+    render();
+    if (editId) openDetail(editId);
+  }
+
+  function deleteCurrentFaction() {
+    const id = document.getElementById('fEditId').value;
+    if (!id) return;
+    if (!confirm('Delete this faction?')) return;
+    World.remove('factions', id);
+    closeModal('factionModal');
+    closeDetail();
+    render();
+    toast('Faction deleted');
+  }
+
+  render();
+</script>
+</body>
+</html>
