@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>World Builder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .hero {
+      padding: 2rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, rgba(91,168,154,0.06) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: var(--ff-ui); font-size: 0.62rem; font-weight: 600;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--teal);
+      display: block; margin-bottom: 0.5rem;
+    }
+    .hero h1 {
+      font-family: var(--ff-sc); font-size: clamp(2rem,4vw,3.2rem);
+      font-weight: 600; color: var(--parch); letter-spacing: 0.05em;
+      line-height: 1.05; margin-bottom: 0.5rem;
+    }
+    .hero-sub { font-size: 1rem; color: var(--text-dim); font-style: italic; max-width: 50ch; }
+    .hero-rename { background:none; border:none; color:var(--text-faint); font-family:var(--ff-ui);
+      font-size:0.7rem; cursor:pointer; text-decoration:underline; text-underline-offset:3px;
+      transition:color var(--t); margin-top:0.75rem; display:block; }
+    .hero-rename:hover { color: var(--parch); }
+
+    /* Two-column layout */
+    .dash-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 1.25rem; }
+    @media(max-width:800px){ .dash-layout { grid-template-columns:1fr; } }
+    .dash-full { grid-column: 1/-1; }
+
+    /* Quick links */
+    .quick-link {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 0.9rem; border-radius: var(--r);
+      background: var(--raised); border: 1px solid transparent;
+      cursor: pointer; transition: border-color var(--t); text-decoration: none;
+    }
+    .quick-link:hover { border-color: var(--border); }
+    .quick-link-icon { font-size: 1rem; opacity: 0.6; width: 20px; text-align:center; }
+    .quick-link-name { font-family:var(--ff-sc); font-size:0.85rem; color:var(--parch); flex:1; }
+    .quick-link-meta { font-size:0.72rem; font-family:var(--ff-ui); color:var(--text-faint); }
+
+    /* Recent events */
+    .ev-item { display:flex; gap:0.75rem; padding:0.7rem 0; border-bottom:1px solid var(--border); }
+    .ev-item:last-child { border-bottom:none; }
+    .ev-date { font-family:var(--ff-ui); font-size:0.65rem; font-weight:600; color:var(--teal);
+      white-space:nowrap; padding-top:0.15rem; min-width:40px; }
+    .ev-title { font-size:0.88rem; color:var(--text); }
+    .ev-era { font-size:0.72rem; color:var(--text-faint); font-style:italic; }
+
+    /* Myth preview */
+    .myth-item { padding:0.7rem 0; border-bottom:1px solid var(--border); }
+    .myth-item:last-child { border-bottom:none; }
+    .myth-name { font-family:var(--ff-sc); font-size:0.85rem; color:var(--violet); }
+    .myth-preview { font-size:0.8rem; color:var(--text-dim); font-style:italic; margin-top:0.2rem;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+    /* Data panel */
+    .data-btns { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .storage-note { font-family:var(--ff-ui); font-size:0.65rem; color:var(--text-faint); }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="page-wrap">
+
+      <!-- HERO -->
+      <div class="hero">
+        <div class="hero-bg"></div>
+        <span class="hero-eyebrow">World Builder</span>
+        <h1 id="heroName">Loading…</h1>
+        <p class="hero-sub" id="heroSub"></p>
+        <button class="hero-rename" onclick="openModal('nameModal')">✎ Rename world</button>
+      </div>
+
+      <!-- STATS -->
+      <div class="stat-row" id="statRow"></div>
+
+      <!-- DASH LAYOUT -->
+      <div class="dash-layout">
+
+        <!-- Characters quick list -->
+        <div class="card">
+          <div class="card-watermark">◉</div>
+          <span class="card-label">Characters</span>
+          <div id="charQuick"></div>
+          <a href="characters.html" class="btn btn-ghost btn-sm mt-md">All characters →</a>
+        </div>
+
+        <!-- Factions quick list -->
+        <div class="card">
+          <div class="card-watermark">⚑</div>
+          <span class="card-label">Factions</span>
+          <div id="facQuick"></div>
+          <a href="factions.html" class="btn btn-ghost btn-sm mt-md">All factions →</a>
+        </div>
+
+        <!-- Events -->
+        <div class="card">
+          <div class="card-watermark">⧗</div>
+          <span class="card-label">Recent History</span>
+          <div id="evQuick"></div>
+          <a href="history.html" class="btn btn-ghost btn-sm mt-md">Full timeline →</a>
+        </div>
+
+        <!-- Mythology -->
+        <div class="card">
+          <div class="card-watermark">✦</div>
+          <span class="card-label">Mythology</span>
+          <div id="mythQuick"></div>
+          <a href="mythology.html" class="btn btn-ghost btn-sm mt-md">All lore →</a>
+        </div>
+
+        <!-- Data management -->
+        <div class="card dash-full">
+          <div class="card-watermark">◎</div>
+          <span class="card-label">World Data</span>
+          <div class="data-btns">
+            <button class="btn btn-parch" onclick="World.exportJSON()">↓ Export JSON</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('importFile').click()">↑ Import JSON</button>
+            <button class="btn btn-coral btn-sm" onclick="confirmReset()">⟳ Reset to defaults</button>
+            <a href="map.html" class="btn btn-teal">◈ Open map →</a>
+          </div>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="doImport(event)">
+          <p class="storage-note">All data is saved automatically to browser localStorage.</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RENAME MODAL -->
+  <div class="modal-backdrop" id="nameModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Rename World</span>
+        <button class="modal-close" onclick="closeModal('nameModal')">✕</button>
+      </div>
+      <div class="form-group">
+        <label>World Name</label>
+        <input type="text" id="newWorldName" placeholder="e.g. The Shattered Realms">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('nameModal')">Cancel</button>
+        <button class="btn btn-parch" onclick="saveWorldName()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/world.js"></script>
+  <script>
+    renderSidebar('index');
+    onBackdrop('nameModal');
+
+    function render() {
+      const d = World._data;
+      document.getElementById('heroName').textContent = d.name;
+      document.getElementById('heroSub').textContent =
+        `${d.factions.length} factions · ${d.characters.length} characters · ${d.locations.length} locations`;
+      document.getElementById('sidebarWorldName').textContent = d.name;
+
+      document.getElementById('statRow').innerHTML = [
+        {n:d.locations.length,  l:'Locations',  i:'◈', h:'map.html'},
+        {n:d.factions.length,   l:'Factions',   i:'⚑', h:'factions.html'},
+        {n:d.characters.length, l:'Characters', i:'◉', h:'characters.html'},
+        {n:d.events.length,     l:'Events',     i:'⧗', h:'history.html'},
+        {n:d.deities.length,    l:'Deities',    i:'✦', h:'mythology.html'},
+        {n:d.mythology.length,  l:'Myths',      i:'◎', h:'mythology.html'},
+      ].map(s=>`<a class="stat-cell" href="${s.h}">
+        <span class="stat-ico">${s.i}</span>
+        <span class="stat-num">${s.n}</span>
+        <span class="stat-lbl">${s.l}</span>
+      </a>`).join('');
+
+      document.getElementById('charQuick').innerHTML = d.characters.length
+        ? d.characters.slice(-4).reverse().map(c=>`
+            <a class="quick-link" href="characters.html">
+              <span class="quick-link-icon">◉</span>
+              <span style="width:7px;height:7px;border-radius:50%;background:${World.factionColor(c.faction_id)};flex-shrink:0;display:inline-block;margin-right:-2px"></span>
+              <span class="quick-link-name">${c.name}</span>
+              <span class="quick-link-meta">${c.role}</span>
+            </a>`).join('')
+        : '<p class="text-faint text-sm italic">No characters yet.</p>';
+
+      document.getElementById('facQuick').innerHTML = d.factions.length
+        ? d.factions.map(f=>`
+            <a class="quick-link" href="factions.html">
+              <span style="width:10px;height:10px;border-radius:50%;background:${f.color};flex-shrink:0"></span>
+              <span class="quick-link-name">${f.name}</span>
+              <span class="quick-link-meta">${f.type}</span>
+            </a>`).join('')
+        : '<p class="text-faint text-sm italic">No factions yet.</p>';
+
+      document.getElementById('evQuick').innerHTML = d.events.length
+        ? d.events.slice(-4).reverse().map(e=>`
+            <div class="ev-item">
+              <span class="ev-date">${e.date||'?'}</span>
+              <div><div class="ev-title">${e.title}</div><div class="ev-era">${e.era||''}</div></div>
+            </div>`).join('')
+        : '<p class="text-faint text-sm italic">No events yet.</p>';
+
+      document.getElementById('mythQuick').innerHTML = d.mythology.length
+        ? d.mythology.slice(0,3).map(m=>`
+            <div class="myth-item">
+              <div class="myth-name">${m.title}</div>
+              <div class="myth-preview">${m.description}</div>
+            </div>`).join('')
+        : '<p class="text-faint text-sm italic">No myths yet.</p>';
+    }
+
+    function saveWorldName() {
+      const val = document.getElementById('newWorldName').value.trim();
+      if (!val) return;
+      World.set('name', val);
+      closeModal('nameModal');
+      render();
+      toast('World renamed to ' + val);
+    }
+
+    document.getElementById('newWorldName').addEventListener('keydown', e => {
+      if (e.key==='Enter') saveWorldName();
+    });
+
+    function doImport(e) {
+      const f = e.target.files[0]; if(!f) return;
+      World.importJSON(f).then(()=>{ toast('World imported'); render(); })
+        .catch(()=>toast('Invalid JSON file','error'));
+    }
+
+    function confirmReset() {
+      if (confirm('Reset all data to the example world? This cannot be undone.')) {
+        World.resetToDefault(); render(); toast('Reset to defaults');
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
