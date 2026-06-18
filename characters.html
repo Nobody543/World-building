@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Characters – World Builder</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .char-card { cursor:pointer; }
+    .char-avatar { width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+      justify-content:center;font-size:1rem;font-family:var(--ff-sc);color:var(--void);
+      flex-shrink:0;font-weight:600; }
+    .char-header { display:flex; align-items:center; gap:0.75rem; margin-top:0.25rem; }
+    .char-name { font-family:var(--ff-sc); font-size:0.95rem; color:var(--parch); }
+    .char-role { font-size:0.78rem; color:var(--text-dim); font-style:italic; }
+    .char-body { font-size:0.82rem; color:var(--text); margin-top:0.65rem; line-height:1.5;
+      display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+
+    /* filter bar */
+    .filter-bar { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+    .filter-btn { background:var(--raised); border:1px solid var(--border); border-radius:20px;
+      padding:0.25rem 0.75rem; font-family:var(--ff-ui); font-size:0.72rem; color:var(--text-dim);
+      cursor:pointer; transition:all var(--t); }
+    .filter-btn:hover, .filter-btn.active { color:var(--parch); border-color:var(--parch-dim); background:var(--parch-glow); }
+
+    /* detail */
+    .dp-name { font-family:var(--ff-sc); font-size:1.3rem; color:var(--parch); }
+    .dp-role { font-size:0.88rem; color:var(--text-dim); font-style:italic; margin-top:0.1rem; }
+    .dp-section { margin-top:1.25rem; }
+    .dp-lbl { font-family:var(--ff-ui); font-size:0.62rem; font-weight:600; letter-spacing:0.12em;
+      text-transform:uppercase; color:var(--text-faint); margin-bottom:0.35rem; display:block; }
+    .dp-text { font-size:0.88rem; color:var(--text); line-height:1.6; }
+    .beat-list { list-style:none; }
+    .beat-li { padding:0.5rem 0; border-bottom:1px solid var(--border); font-size:0.84rem; }
+    .beat-li:last-child { border-bottom:none; }
+    .beat-chapter { font-family:var(--ff-ui); font-size:0.65rem; font-weight:600; color:var(--teal); }
+  </style>
+</head>
+<body>
+<div class="main">
+<div class="page-wrap">
+  <div class="page-header">
+    <span class="page-eyebrow">World</span>
+    <h1 class="page-title">Characters</h1>
+    <p class="page-desc">The people who shape events — heroes, villains, and everyone between.</p>
+    <div class="page-actions">
+      <button class="btn btn-parch" onclick="openAddModal()">+ New Character</button>
+    </div>
+  </div>
+
+  <div class="filter-bar" id="filterBar"></div>
+  <div class="entity-grid" id="charGrid"></div>
+</div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <div></div>
+    <button class="btn btn-ghost btn-icon" onclick="closeDetail()">✕</button>
+  </div>
+  <div id="detailContent"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="charModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Character</span>
+      <button class="modal-close" onclick="closeModal('charModal')">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="cName" placeholder="Character name">
+      </div>
+      <div class="form-group">
+        <label>Role / Title</label>
+        <input type="text" id="cRole" placeholder="e.g. Warlord, Elder">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Faction</label>
+        <select id="cFaction"></select>
+      </div>
+      <div class="form-group">
+        <label>Current Location</label>
+        <select id="cLocation"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Biography</label>
+      <textarea id="cBio" rows="4" placeholder="Who are they? What drives them? What haunts them?"></textarea>
+    </div>
+    <input type="hidden" id="cEditId">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('charModal')">Cancel</button>
+      <button class="btn btn-coral btn-sm" id="cDeleteBtn" onclick="deleteChar()" style="display:none">Delete</button>
+      <button class="btn btn-parch" onclick="saveChar()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- STORY BEAT MODAL -->
+<div class="modal-backdrop" id="beatModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <span class="modal-title">Add Story Beat</span>
+      <button class="modal-close" onclick="closeModal('beatModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Chapter / Scene</label>
+      <input type="text" id="beatChapter" placeholder="e.g. Ch. 2">
+    </div>
+    <div class="form-group">
+      <label>Location</label>
+      <select id="beatLocation"></select>
+    </div>
+    <div class="form-group">
+      <label>What happens?</label>
+      <textarea id="beatNote" rows="3" placeholder="Brief note on this character's story beat."></textarea>
+    </div>
+    <input type="hidden" id="beatCharId">
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('beatModal')">Cancel</button>
+      <button class="btn btn-parch" onclick="saveBeat()">Add Beat</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/world.js"></script>
+<script>
+  renderSidebar('characters');
+  onBackdrop('charModal');
+  onBackdrop('beatModal');
+  let filterFaction = '';
+
+  function renderFilters() {
+    const facs = World.get('factions');
+    document.getElementById('filterBar').innerHTML =
+      `<button class="filter-btn${filterFaction===''?' active':''}" onclick="setFilter('')">All</button>` +
+      facs.map(f=>`<button class="filter-btn${filterFaction===f.id?' active':''}" onclick="setFilter('${f.id}')">
+        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${f.color};margin-right:4px"></span>${f.name}
+      </button>`).join('') +
+      `<button class="filter-btn${filterFaction==='none'?' active':''}" onclick="setFilter('none')">No faction</button>`;
+  }
+
+  function setFilter(id) { filterFaction=id; renderFilters(); renderChars(); }
+
+  function renderChars() {
+    let chars = World.get('characters');
+    if (filterFaction==='none') chars = chars.filter(c=>!c.faction_id);
+    else if (filterFaction) chars = chars.filter(c=>c.faction_id===filterFaction);
+
+    const grid = document.getElementById('charGrid');
+    if (!chars.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">◉</div><div class="empty-label">No characters</div>
+        <div class="empty-hint">Add the first person in your world.</div></div>`; return;
+    }
+    grid.innerHTML = chars.map(c => {
+      const col = World.factionColor(c.faction_id);
+      const initials = c.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+      return `
+      <div class="entity-card char-card" onclick="openDetail('${c.id}')">
+        <div class="color-bar" style="background:${col}"></div>
+        <div class="char-header">
+          <div class="char-avatar" style="background:${col}">${initials}</div>
+          <div>
+            <div class="char-name">${c.name}</div>
+            <div class="char-role">${c.role}</div>
+          </div>
+        </div>
+        <div class="char-body">${c.bio||'No biography yet.'}</div>
+        <div class="entity-footer">
+          ${c.faction_id ? `<span class="tag tag-dim" style="border-color:${col};color:${col}">${World.factionName(c.faction_id)}</span>` : ''}
+          ${c.location_id ? `<span class="tag tag-dim">⬥ ${World.locationName(c.location_id)}</span>` : ''}
+          ${c.story_beats?.length ? `<span class="tag tag-teal">${c.story_beats.length} beat${c.story_beats.length!==1?'s':''}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openDetail(id) {
+    const c = World.find('characters', id);
+    if (!c) return;
+    const col = World.factionColor(c.faction_id);
+    const initials = c.name.split(' ').map(w=>w[0]).slice(0,2).join('');
+    const beats = c.story_beats || [];
+
+    document.getElementById('detailContent').innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.25rem">
+        <div class="char-avatar" style="background:${col};width:48px;height:48px;font-size:1.1rem">${initials}</div>
+        <div>
+          <div class="dp-name">${c.name}</div>
+          <div class="dp-role">${c.role}</div>
+        </div>
+      </div>
+      <div class="flex gap-xs" style="flex-wrap:wrap;margin-bottom:1rem">
+        ${c.faction_id ? `<span class="tag tag-dim" style="border-color:${col};color:${col}">${World.factionName(c.faction_id)}</span>` : ''}
+        ${c.location_id ? `<span class="tag tag-dim">⬥ ${World.locationName(c.location_id)}</span>` : ''}
+      </div>
+      <div class="dp-section"><span class="dp-lbl">Biography</span><div class="dp-text">${c.bio||'No biography.'}</div></div>
+      <div class="dp-section">
+        <div class="flex-between mb-sm">
+          <span class="dp-lbl" style="margin-bottom:0">Story Beats</span>
+          <button class="btn btn-teal btn-sm" onclick="openBeatModal('${id}')">+ Beat</button>
+        </div>
+        ${beats.length ? `<ul class="beat-list">${beats.map((b,i)=>`
+          <li class="beat-li">
+            <div class="beat-chapter">${b.chapter||'?'} · ${World.locationName(b.location_id)}</div>
+            <div style="font-size:0.84rem;margin-top:0.15rem">${b.note||''}</div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:0.35rem;font-size:0.65rem" onclick="removeBeat('${id}',${i})">✕ Remove</button>
+          </li>`).join('')}</ul>` : '<p class="text-faint text-sm italic">No story beats yet.</p>'}
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-ghost btn-sm" onclick="openEditModal('${id}')">✎ Edit character</button>
+    `;
+    document.getElementById('detailPanel').classList.add('open');
+  }
+
+  function closeDetail() { document.getElementById('detailPanel').classList.remove('open'); }
+
+  function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'New Character';
+    ['cName','cRole','cBio'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cEditId').value='';
+    document.getElementById('cDeleteBtn').style.display='none';
+    document.getElementById('cFaction').innerHTML = factionOptions('');
+    document.getElementById('cLocation').innerHTML = locationOptions('');
+    openModal('charModal');
+  }
+
+  function openEditModal(id) {
+    const c = World.find('characters', id);
+    if (!c) return;
+    document.getElementById('modalTitle').textContent = 'Edit Character';
+    document.getElementById('cName').value = c.name;
+    document.getElementById('cRole').value = c.role;
+    document.getElementById('cBio').value = c.bio||'';
+    document.getElementById('cEditId').value = id;
+    document.getElementById('cDeleteBtn').style.display='';
+    document.getElementById('cFaction').innerHTML = factionOptions(c.faction_id||'');
+    document.getElementById('cLocation').innerHTML = locationOptions(c.location_id||'');
+    openModal('charModal');
+  }
+
+  function saveChar() {
+    const name = document.getElementById('cName').value.trim();
+    if (!name) { toast('Name required','error'); return; }
+    const data = {
+      name, role: document.getElementById('cRole').value.trim(),
+      bio: document.getElementById('cBio').value.trim(),
+      faction_id: document.getElementById('cFaction').value||null,
+      location_id: document.getElementById('cLocation').value||null,
+    };
+    const editId = document.getElementById('cEditId').value;
+    if (editId) { World.update('characters', editId, data); toast('Character updated'); openDetail(editId); }
+    else { const c = World.add('characters', {...data, story_beats:[]}); toast('Character added'); openDetail(c.id); }
+    closeModal('charModal');
+    renderChars();
+  }
+
+  function deleteChar() {
+    const id = document.getElementById('cEditId').value;
+    if (!confirm('Delete this character?')) return;
+    World.remove('characters', id);
+    closeModal('charModal'); closeDetail(); renderChars(); toast('Character deleted');
+  }
+
+  function openBeatModal(charId) {
+    document.getElementById('beatCharId').value = charId;
+    document.getElementById('beatChapter').value = '';
+    document.getElementById('beatNote').value = '';
+    document.getElementById('beatLocation').innerHTML = locationOptions('');
+    openModal('beatModal');
+  }
+
+  function saveBeat() {
+    const charId = document.getElementById('beatCharId').value;
+    const chapter = document.getElementById('beatChapter').value.trim();
+    if (!chapter) { toast('Chapter required','error'); return; }
+    const c = World.find('characters', charId);
+    if (!c) return;
+    const beats = c.story_beats||[];
+    beats.push({
+      chapter,
+      location_id: document.getElementById('beatLocation').value||null,
+      note: document.getElementById('beatNote').value.trim()
+    });
+    World.update('characters', charId, {story_beats:beats});
+    closeModal('beatModal');
+    openDetail(charId);
+    renderChars();
+    toast('Story beat added');
+  }
+
+  function removeBeat(charId, idx) {
+    const c = World.find('characters', charId);
+    if (!c) return;
+    const beats = (c.story_beats||[]).filter((_,i)=>i!==idx);
+    World.update('characters', charId, {story_beats:beats});
+    openDetail(charId);
+    toast('Beat removed');
+  }
+
+  renderFilters(); renderChars();
+</script>
+</body>
+</html>
